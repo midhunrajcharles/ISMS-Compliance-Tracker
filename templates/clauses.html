@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Clauses 4&ndash;10 &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Management system clauses 4&ndash;10</h1>
+    <p>{{ stats.total }} requirements &middot; {{ stats.percent }}% complete</p>
+  </div>
+</div>
+
+<div class="note-box">
+  Annex A is not sufficient on its own. Clauses 4 to 10 carry the mandatory
+  management system requirements, and an auditor will examine them before
+  looking at any individual control. Several of these clauses demand specific
+  documented information.
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>Requirements</h2>
+    <span class="hint">
+      {{ stats.counts['Verified'] }} verified &middot;
+      {{ stats.counts['Implemented'] }} implemented &middot;
+      {{ stats.counts['In Progress'] }} in progress &middot;
+      {{ stats.counts['Not Started'] }} not started
+    </span>
+  </div>
+  <div class="t-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:66px">Clause</th>
+          <th style="width:250px">Title</th>
+          <th>Requirement</th>
+          <th style="width:230px">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for c in clauses %}
+        <tr>
+          <td class="mono nowrap">{{ c.ref }}</td>
+          <td>{{ c.title }}</td>
+          <td class="small muted">{{ c.requirement }}</td>
+          <td>
+            <form method="post" style="display:flex; gap:6px; align-items:center"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="ref" value="{{ c.ref }}">
+              <select name="status" style="flex:1">
+                {% for s in statuses %}
+                  <option value="{{ s }}" {{ 'selected' if c.status == s }}>{{ s }}</option>
+                {% endfor %}
+              </select>
+              {% if can_write(request.endpoint) %}<button class="btn sm ghost" type="submit">Save</button>{% else %}<span class="readonly-note">Read only for your role</span>{% endif %}
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% from "_activity.html" import history_card with context %}
+{% block title %}{{ doc.code if doc and doc.id else 'New document' }} &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ doc.title if doc and doc.id else 'Add a document' }}</h1>
+    <p>ISMS document register &middot; clause 7.5 documented information</p>
+  </div>
+  <div class="head-actions">
+    {% if doc and doc.id %}
+      {% if doc.status != 'Obsolete' and can_write('document_archive') %}
+      <form method="post" action="{{ url_for('document_archive', doc_id=doc.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn ghost" type="submit" title="Keep it, marked Obsolete">Archive</button>
+      </form>
+      {% endif %}
+      {% if can_write('delete_item') %}<a class="btn ghost danger-text" href="{{ url_for('delete_item', kind='document', item_id=doc.id) }}">Delete</a>{% endif %}
+    {% endif %}
+    <a class="btn ghost" href="{{ url_for('documents') }}">&larr; Back to register</a>
+  </div>
+</div>
+
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="card-head"><h2>Document details</h2></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div>
+          <label class="fl" for="code">Reference code</label>
+          <input type="text" id="code" name="code" required value="{{ doc.code if doc else '' }}"
+                 placeholder="ISMS-POL-09">
+        </div>
+        <div>
+          <label class="fl" for="version">Version</label>
+          <input type="text" id="version" name="version" value="{{ doc.version if doc else '0.1' }}">
+        </div>
+        <div class="full">
+          <label class="fl" for="title">Title</label>
+          <input type="text" id="title" name="title" required value="{{ doc.title if doc else '' }}">
+        </div>
+        <div>
+          <label class="fl" for="doc_type">Type</label>
+          <select id="doc_type" name="doc_type">
+            {% for t in doc_types %}
+              <option value="{{ t }}" {{ 'selected' if doc and doc.doc_type == t }}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="fl" for="owner">Owner</label>
+          <input type="text" id="owner" name="owner" value="{{ doc.owner if doc else '' }}">
+        </div>
+        <div>
+          <label class="fl" for="status">Status</label>
+          <select id="status" name="status">
+            {% for s in statuses %}
+              <option value="{{ s }}" {{ 'selected' if doc and doc.status == s }}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="fl" for="clause_ref">Clause reference</label>
+          <input type="text" id="clause_ref" name="clause_ref" value="{{ doc.clause_ref if doc else '' }}"
+                 placeholder="e.g. 6.1.3">
+          <div class="help">Leave blank if not mandated by a specific clause.</div>
+        </div>
+        <div>
+          <label class="fl" for="approved_on">Approved on</label>
+          <input type="date" id="approved_on" name="approved_on" value="{{ doc.approved_on if doc else '' }}">
+        </div>
+        <div>
+          <label class="fl" for="next_review">Next review due</label>
+          <input type="date" id="next_review" name="next_review" value="{{ doc.next_review if doc else '' }}">
+        </div>
+        <div class="full">
+          <label class="fl" for="notes">Notes</label>
+          <textarea id="notes" name="notes">{{ doc.notes if doc else '' }}</textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if can_write(request.endpoint) %}<button class="btn" type="submit">{{ 'Save document' if doc and doc.id else 'Create document' }}</button>{% else %}<span class="readonly-note">Read only for your role</span>{% endif %}
+  <a class="btn ghost" href="{{ url_for('documents') }}">Cancel</a>
+</form>
+{% if doc and doc.id %}
+{{ history_card(history, 'document') }}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Document register &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>ISMS document register</h1>
+    <p>{{ stats.total }} entries &middot; {{ stats.approved }} approved &middot; clause 7.5 documented information</p>
+  </div>
+  <div class="head-actions">
+    <a class="btn ghost" href="{{ url_for('export_csv', kind='documents') }}">Export CSV</a>
+    {% if can_write('document_form') %}<a class="btn" href="{{ url_for('document_form') }}">Add document</a>{% endif %}
+  </div>
+</div>
+
+<div class="grid c4">
+  {% for status, cls in [('Approved','st-ver'), ('Under Review','st-prog'),
+                         ('Draft','st-none'), ('Obsolete','st-obs')] %}
+  <div class="card stat">
+    <div class="label">{{ status }}</div>
+    <div class="value">{{ stats.counts.get(status, 0) }}</div>
+    <div class="note">
+      {{ ((100 * stats.counts.get(status, 0) / stats.total)|round(0)|int) if stats.total else 0 }}% of the register
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>Register</h2>
+    <span class="hint">
+      {% if show_archived %}
+        Showing archived documents too &middot; <a href="{{ url_for('documents') }}">Hide archived</a>
+      {% elif stats.counts.get('Obsolete', 0) %}
+        {{ stats.counts.get('Obsolete') }} archived hidden &middot; <a href="{{ url_for('documents', archived=1) }}">Show archived</a>
+      {% else %}
+        Version, ownership and review cycle
+      {% endif %}
+    </span>
+  </div>
+  <div class="t-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:112px">Code</th>
+          <th>Title</th>
+          <th style="width:86px">Type</th>
+          <th style="width:62px">Version</th>
+          <th style="width:150px">Owner</th>
+          <th style="width:112px">Status</th>
+          <th style="width:118px">Next review</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for d in documents %}
+        {% set days = d.next_review|days_until %}
+        <tr>
+          <td class="mono nowrap"><a href="{{ url_for('document_form', doc_id=d.id) }}">{{ d.code }}</a></td>
+          <td>
+            {{ d.title }}
+            {% if d.clause_ref %}<span class="tag">Clause {{ d.clause_ref }}</span>{% endif %}
+          </td>
+          <td class="small">{{ d.doc_type }}</td>
+          <td class="mono">{{ d.version }}</td>
+          <td class="small">{{ d.owner }}</td>
+          <td><span class="pill {{ status_class(d.status) }}">{{ d.status }}</span></td>
+          <td class="small nowrap">
+            {% if d.next_review %}
+              {{ d.next_review }}
+              {% if days is not none and days < 30 %}
+                <span class="pill lvl-high">due</span>
+              {% endif %}
+            {% else %}
+              <span class="muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="note-box">
+  Entries marked with a clause reference satisfy documented information that
+  ISO/IEC 27001:2022 requires explicitly. The remainder are supporting policies
+  and procedures adopted to evidence Annex A controls.
+</div>
+{% endblock %}

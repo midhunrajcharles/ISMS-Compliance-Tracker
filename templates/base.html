@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}ISMS Compliance Tracker{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script>
+  // Pick the theme before the page paints, so there is no light flash in
+  // dark mode: a saved choice first, otherwise the system setting.
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem("theme"); } catch (e) {}
+    if (t !== "light" && t !== "dark") {
+      t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    document.documentElement.setAttribute("data-theme", t);
+  })();
+</script>
+</head>
+<body>
+<div class="shell{{ "" if g.user else " no-side" }}">
+
+  {% if g.user %}
+  <nav class="sidebar">
+    <div class="brand">
+      <div class="mark">ISMS Compliance Tracker</div>
+      <div class="sub">ISO/IEC 27001:2022</div>
+    </div>
+
+    <form class="side-search" method="get" action="{{ url_for('search') }}" role="search">
+      <input type="search" name="q" placeholder="Search everything&hellip;" aria-label="Search everything"
+             value="{{ request.args.q if request.endpoint == 'search' else '' }}">
+    </form>
+
+    <div class="nav-label">Overview</div>
+    <a class="nav {{ 'active' if request.endpoint == 'my_tasks' }}" href="{{ url_for('my_tasks') }}">
+      My tasks
+      {% if my_overdue_count %}
+        <span class="count overdue" title="{{ my_overdue_count }} overdue">{{ my_overdue_count }}</span>
+      {% elif my_task_count %}
+        <span class="count">{{ my_task_count }}</span>
+      {% endif %}
+    </a>
+    <a class="nav {{ 'active' if request.endpoint == 'dashboard' }}" href="{{ url_for('dashboard') }}">Dashboard</a>
+    <a class="nav {{ 'active' if request.endpoint == 'gap' }}" href="{{ url_for('gap') }}">Gap analysis</a>
+    <a class="nav {{ 'active' if request.endpoint == 'activity' }}" href="{{ url_for('activity') }}">Activity</a>
+
+    <div class="nav-label">Requirements</div>
+    <a class="nav {{ 'active' if request.endpoint in ('controls','control_detail') }}" href="{{ url_for('controls') }}">
+      Annex A controls <span class="count">93</span>
+    </a>
+    <a class="nav {{ 'active' if request.endpoint == 'clauses' }}" href="{{ url_for('clauses') }}">
+      Clauses 4&ndash;10 <span class="count">25</span>
+    </a>
+    <a class="nav {{ 'active' if request.endpoint == 'soa' }}" href="{{ url_for('soa') }}">Statement of Applicability</a>
+
+    <div class="nav-label">Operation</div>
+    <a class="nav {{ 'active' if request.endpoint in ('risks','risk_form') }}" href="{{ url_for('risks') }}">Risk register</a>
+    <a class="nav {{ 'active' if request.endpoint in ('documents','document_form') }}" href="{{ url_for('documents') }}">Document register</a>
+    <a class="nav {{ 'active' if request.endpoint in ('audit','finding_form') }}" href="{{ url_for('audit') }}">Audit &amp; corrective action</a>
+
+    {% if g.user.role == 'admin' %}
+    <div class="nav-label">Admin</div>
+    <a class="nav {{ 'active' if request.endpoint == 'users' }}" href="{{ url_for('users') }}">Users</a>
+    {% endif %}
+
+    <div class="me">
+      <a class="me-name" href="{{ url_for('profile') }}">{{ g.user.name }}</a>
+      <span class="role-tag">{{ g.user.role }}</span>
+      <button class="linklike theme-toggle" type="button" id="theme-toggle">Dark mode</button>
+      <form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="linklike" type="submit">Log out</button>
+      </form>
+    </div>
+  </nav>
+  {% endif %}
+
+  <main class="main">
+    {% for msg in get_flashed_messages() %}<div class="note-box" role="status">{{ msg }}</div>{% endfor %}
+    {% if error %}<div class="note-box bad" role="alert">{{ error }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+</div>
+<script>
+  (function () {
+    var btn = document.getElementById("theme-toggle");
+    if (!btn) return;
+    var root = document.documentElement;
+    function label() {
+      btn.textContent = root.getAttribute("data-theme") === "dark" ? "Light mode" : "Dark mode";
+    }
+    btn.addEventListener("click", function () {
+      var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem("theme", next); } catch (e) {}
+      label();
+    });
+    label();
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ 'Not allowed' if code == 403 else 'Something is wrong with that request' }}</h1>
+    <p>Error {{ code }}</p>
+  </div>
+</div>
+<div class="note-box bad">{{ message }}</div>
+<a class="btn ghost" href="{{ url_for('dashboard') }}">&larr; Back to dashboard</a>
+{% endblock %}

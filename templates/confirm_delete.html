@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Delete {{ ref }} &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Delete {{ kind }} {{ ref }}?</h1>
+    <p>This cannot be undone.</p>
+  </div>
+</div>
+
+<div class="card" style="max-width: 640px">
+  <div class="card-body">
+    <p style="margin-top: 0"><strong>{{ description|truncate(160, true, '…') }}</strong></p>
+    <p>Deleting it also removes:</p>
+    <ul>
+      {% if kind == 'risk' %}<li>its links to {{ links }} Annex A control{{ '' if links == 1 else 's' }} (their SoA justifications are re-derived)</li>{% endif %}
+      {% if kind == 'document' %}<li>its links to {{ links }} Annex A control{{ '' if links == 1 else 's' }}</li>{% endif %}
+      <li>{{ comments }} comment{{ '' if comments == 1 else 's' }}</li>
+    </ul>
+    <p class="help">Its change history stays in the activity log, with a record of this deletion.</p>
+    {% if kind == 'document' %}
+      <div class="note-box warn">Usually a retired document should be <strong>archived</strong> instead (status Obsolete), so there is still a record of what the policy said.</div>
+    {% endif %}
+
+    <form method="post" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn danger" type="submit">Yes, delete {{ ref }}</button>
+      <a class="btn ghost" href="{{ back }}">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

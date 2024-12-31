@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Search{% if q %}: {{ q }}{% endif %} &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Search</h1>
+    <p>
+      {% if q|length >= 2 %}{{ total }} result{{ '' if total == 1 else 's' }} for &ldquo;{{ q }}&rdquo; across controls, risks, documents and findings
+      {% else %}Controls, risks, documents and findings, all at once{% endif %}
+    </p>
+  </div>
+</div>
+
+<form class="toolbar" method="get" action="{{ url_for('search') }}">
+  <div class="fld" style="flex: 1">
+    <label class="fl" for="search-q">Search for</label>
+    <input type="search" id="search-q" name="q" value="{{ q }}" autofocus
+           placeholder="e.g. backup, R-004, A.8.13, laptop">
+  </div>
+  <button class="btn" type="submit">Search</button>
+</form>
+
+{% if q and q|length < 2 %}
+  <div class="note-box">Type at least 2 characters.</div>
+{% elif q %}
+  {% if not total %}
+    <div class="card"><div class="empty">Nothing matches &ldquo;{{ q }}&rdquo;. Try a shorter word or a reference like A.5.15.</div></div>
+  {% endif %}
+  {% for grp in groups if grp['items'] %}
+  <div class="card" style="margin-bottom: 18px">
+    <div class="card-head">
+      <h2>{{ grp.heading }}</h2>
+      <span class="hint">{{ grp['items']|length }}{{ '+' if grp.more }} found</span>
+    </div>
+    <ul class="act-list">
+      {% for r in grp['items'] %}
+      <li class="act">
+        <div class="act-text">
+          <a class="mono" href="{{ r.url }}">{{ r.ref }}</a>
+          &nbsp;{{ r.title|truncate(140, true, '…') }}
+        </div>
+        <span class="pill {{ status_class(r.status) }}">{{ r.status }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+{% endif %}
+{% endblock %}

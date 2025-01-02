@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Annex A controls &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Annex A controls</h1>
+    <p>93 controls in four themes &middot; {{ stats.applicable }} applicable, {{ stats.excluded }} excluded</p>
+  </div>
+  <a class="btn ghost" href="{{ url_for('soa') }}">Statement of Applicability</a>
+</div>
+
+<form class="toolbar" method="get">
+  <div class="fld">
+    <label class="fl" for="q">Search</label>
+    <input type="text" id="q" name="q" value="{{ search }}" placeholder="Control name or reference">
+  </div>
+  <div class="fld">
+    <label class="fl" for="theme">Theme</label>
+    <select id="theme" name="theme">
+      <option value="">All themes</option>
+      {% for t in themes %}
+        <option value="{{ t }}" {{ 'selected' if sel_theme == t }}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="fld">
+    <label class="fl" for="status">Status</label>
+    <select id="status" name="status">
+      <option value="">All statuses</option>
+      {% for s in statuses %}
+        <option value="{{ s }}" {{ 'selected' if sel_status == s }}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn" type="submit">Filter</button>
+  <a class="btn ghost" href="{{ url_for('controls') }}">Reset</a>
+</form>
+
+{% set bulk = can_write('controls_bulk') %}
+{% if bulk %}<form method="post" action="{{ url_for('controls_bulk') }}" id="bulk-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="back" value="{{ request.full_path }}">{% endif %}
+<div class="card">
+  <div class="card-head">
+    <h2>{{ controls|length }} control{{ '' if controls|length == 1 else 's' }}</h2>
+    {% if bulk %}
+    <div class="inline-form bulk-bar">
+      <span class="help" style="margin: 0" id="bulk-count">Tick controls, then</span>
+      <select name="status" aria-label="Status to apply" required>
+        <option value="">set status to&hellip;</option>
+        {% for s in statuses %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+      </select>
+      <button class="btn sm" type="submit">Apply</button>
+    </div>
+    {% else %}
+    <span class="hint">Select a reference to record status, ownership and evidence</span>
+    {% endif %}
+  </div>
+  <div class="t-wrap">
+    <table>
+      <thead>
+        <tr>
+          {% if bulk %}<th style="width:34px"><input type="checkbox" id="tick-all" aria-label="Tick all applicable controls"></th>{% endif %}
+          <th style="width:74px">Ref</th>
+          <th>Control</th>
+          <th style="width:120px">Theme</th>
+          <th style="width:96px">Type</th>
+          <th style="width:112px">Status</th>
+          <th style="width:150px">Owner</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for c in controls %}
+        <tr class="{{ 'excluded' if not c.applicable }}">
+          {% if bulk %}<td>{% if c.applicable %}<input type="checkbox" name="refs" value="{{ c.ref }}" class="tick" aria-label="Tick {{ c.ref }}">{% endif %}</td>{% endif %}
+          <td class="mono nowrap"><a href="{{ url_for('control_detail', ref=c.ref) }}">{{ c.ref }}</a></td>
+          <td>
+            {{ c.title }}
+            {% if not c.applicable %}<span class="tag">Excluded</span>{% endif %}
+            <div class="small muted">{{ c.purpose }}</div>
+          </td>
+          <td class="small">{{ c.theme }}</td>
+          <td class="small">{{ c.control_type }}</td>
+          <td>
+            {% if c.applicable %}
+              <span class="pill {{ status_class(c.status) }}">{{ c.status }}</span>
+            {% else %}
+              <span class="muted small">n/a</span>
+            {% endif %}
+          </td>
+          <td class="small">{{ c.owner }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="{{ 7 if bulk else 6 }}" class="empty">No controls match the current filter.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% if bulk %}</form>
+<script>
+  // "Tick all" box and a live count; the form works without this too.
+  (function () {
+    var all = document.getElementById("tick-all");
+    var ticks = document.querySelectorAll("#bulk-form .tick");
+    var count = document.getElementById("bulk-count");
+    function update() {
+      var n = document.querySelectorAll("#bulk-form .tick:checked").length;
+      count.textContent = n ? n + " ticked:" : "Tick controls, then";
+    }
+    all.addEventListener("change", function () {
+      ticks.forEach(function (t) { t.checked = all.checked; });
+      update();
+    });
+    ticks.forEach(function (t) { t.addEventListener("change", update); });
+  })();
+</script>
+{% endif %}
+{% endblock %}

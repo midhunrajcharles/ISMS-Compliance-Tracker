@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% from "_comments.html" import comments_card with context %}
+{% from "_activity.html" import history_card with context %}
+{% block title %}{{ c.ref }} &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ c.ref }} &nbsp;{{ c.title }}</h1>
+    <p>{{ c.theme }} control &middot; {{ c.control_type }} &middot; last updated {{ c.updated_at or 'never' }}</p>
+  </div>
+  <a class="btn ghost" href="{{ url_for('controls', theme=c.theme) }}">&larr; Back to {{ c.theme|lower }} controls</a>
+</div>
+
+<div class="note-box">
+  <strong>Purpose.</strong> {{ c.purpose }}
+</div>
+
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="grid c2">
+
+    <div class="card">
+      <div class="card-head"><h2>Implementation</h2></div>
+      <div class="card-body">
+        <div class="form-grid">
+          <div>
+            <label class="fl" for="status">Status</label>
+            <select id="status" name="status">
+              {% for s in statuses %}
+                <option value="{{ s }}" {{ 'selected' if c.status == s }}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="fl" for="owner">Control owner</label>
+            <input type="text" id="owner" name="owner" value="{{ c.owner or '' }}">
+            <div class="help">The accountable role, e.g. IT Infrastructure Lead.</div>
+          </div>
+          <div>
+            <label class="fl" for="assignee_id">Assigned to</label>
+            <select id="assignee_id" name="assignee_id">
+              <option value="">&mdash; nobody yet &mdash;</option>
+              {% for p in people() %}
+                <option value="{{ p.id }}" {{ 'selected' if c.assignee_id == p.id }}>{{ p.name }} ({{ p.role }})</option>
+              {% endfor %}
+            </select>
+            <div class="help">The person doing the work. It appears in their &ldquo;My tasks&rdquo;.</div>
+          </div>
+          <div>
+            <label class="fl" for="due_date">Due date</label>
+            <input type="date" id="due_date" name="due_date" value="{{ c.due_date or '' }}">
+          </div>
+          <div class="full">
+            <label class="fl" for="evidence">Evidence held</label>
+            <input type="text" id="evidence" name="evidence" value="{{ c.evidence or '' }}"
+                   placeholder="e.g. Quarterly access review sheet, Q3 2025, signed by IT lead">
+            <div class="help">What an auditor would be shown to demonstrate this control operates.</div>
+          </div>
+          <div class="full">
+            <label class="fl" for="notes">Implementation notes</label>
+            <textarea id="notes" name="notes">{{ c.notes or '' }}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Applicability</h2>
+        <span class="hint">Clause 6.1.3(d)</span>
+      </div>
+      <div class="card-body">
+        <div>
+          <label class="fl" for="applicable">Included in the ISMS scope</label>
+          <select id="applicable" name="applicable">
+            <option value="1" {{ 'selected' if c.applicable }}>Applicable</option>
+            <option value="0" {{ 'selected' if not c.applicable }}>Excluded</option>
+          </select>
+        </div>
+        <div style="margin-top: 15px">
+          <label class="fl" for="justification">Justification</label>
+          <textarea id="justification" name="justification" style="min-height: 118px">{{ c.justification or '' }}</textarea>
+          <div class="help">
+            ISO/IEC 27001 requires a justification for every control, whether it is
+            included or excluded. This text is carried straight into the Statement
+            of Applicability.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if can_write(request.endpoint) %}<button class="btn" type="submit">Save control</button>{% else %}<span class="readonly-note">Read only for your role</span>{% endif %}
+</form>
+
+<div class="grid c3" style="margin-top: 22px">
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Risks treated</h2>
+      <span class="hint">{{ linked_risks|length }}</span>
+    </div>
+    {% if linked_risks %}
+    <div class="t-wrap">
+      <table>
+        <thead><tr><th>Ref</th><th>Asset</th><th>Level</th></tr></thead>
+        <tbody>
+        {% for r in linked_risks %}
+          {% set sc = risk_score(r.res_likelihood or r.likelihood, r.res_impact or r.impact) %}
+          <tr>
+            <td class="mono nowrap"><a href="{{ url_for('risk_form', risk_id=r.id) }}">{{ r.ref }}</a></td>
+            <td class="small">{{ r.asset }}</td>
+            <td><span class="pill {{ risk_level_class(risk_level(sc)) }}">{{ risk_level(sc) }}</span></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty">No risk in the register is currently linked to this control.</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Supporting documents</h2>
+      <span class="hint">{{ linked_docs|length }}</span>
+    </div>
+    {% if linked_docs %}
+    <div class="t-wrap">
+      <table>
+        <thead><tr><th>Code</th><th>Title</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for d in linked_docs %}
+          <tr>
+            <td class="mono nowrap"><a href="{{ url_for('document_form', doc_id=d.id) }}">{{ d.code }}</a></td>
+            <td class="small">{{ d.title }}</td>
+            <td><span class="pill {{ status_class(d.status) }}">{{ d.status }}</span></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty">No document in the register evidences this control.</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Findings raised</h2>
+      <span class="hint">{{ findings|length }}</span>
+    </div>
+    {% if findings %}
+    <div class="t-wrap">
+      <table>
+        <thead><tr><th>Ref</th><th>Severity</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for f in findings %}
+          <tr>
+            <td class="mono nowrap"><a href="{{ url_for('finding_form', finding_id=f.id) }}">{{ f.ref }}</a></td>
+            <td><span class="pill {{ status_class(f.severity) }}">{{ f.severity }}</span></td>
+            <td><span class="pill {{ status_class(f.status) }}">{{ f.status }}</span></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty">No audit finding has been raised against this control.</div>
+    {% endif %}
+  </div>
+</div>
+<div class="card" id="evidence-files" style="margin-top: 22px">
+  <div class="card-head">
+    <h2>Evidence files</h2>
+    <span class="hint">Proof this control operates: reports, screenshots, log exports</span>
+  </div>
+  {% if uploads_are_temporary %}
+    <div class="note-box warn" style="margin: 12px 16px 0">
+      This copy runs on a host that wipes its disk, so uploaded files disappear after a while.
+      Run the app locally or on a host with a persistent disk to keep them.
+    </div>
+  {% endif %}
+  {% if evidence %}
+  <div class="t-wrap">
+    <table>
+      <thead>
+        <tr><th>File</th><th style="width:90px">Size</th><th style="width:210px">Uploaded</th><th style="width:170px"></th></tr>
+      </thead>
+      <tbody>
+        {% for ev in evidence %}
+        <tr>
+          <td><a href="{{ url_for('evidence_file', file_id=ev.id) }}" target="_blank" rel="noopener">{{ ev.original_name }}</a></td>
+          <td>{{ ev.size|filesizeformat }}</td>
+          <td>{{ ev.uploaded_by_name }} <span class="help" title="{{ ev.at }} UTC">&middot; {{ ev.at|ago }}</span></td>
+          <td class="inline-form">
+            <a class="btn sm ghost" href="{{ url_for('evidence_file', file_id=ev.id, download=1) }}">Download</a>
+            {% if can_write('evidence_delete') and (g.user.role == 'admin' or ev.uploaded_by == g.user.id) %}
+            <form method="post" action="{{ url_for('evidence_delete', file_id=ev.id) }}"
+                  onsubmit='return confirm({{ ("Delete " ~ ev.original_name ~ "? This cannot be undone.")|tojson }})'>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn sm ghost" type="submit">Delete</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <div class="empty">No files yet.</div>
+  {% endif %}
+
+  {% if can_write('evidence_upload') %}
+  <form method="post" action="{{ url_for('evidence_upload', ref=c.ref) }}" enctype="multipart/form-data"
+        class="card-body inline-form" style="border-top: 1px solid var(--line)">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="file" name="file" required accept=".pdf,.png,.jpg,.jpeg,.txt,.csv" aria-label="Evidence file">
+    <button class="btn sm" type="submit">Upload</button>
+    <span class="help" style="margin: 0">PDF, PNG, JPG, TXT or CSV &middot; up to {{ max_upload_mb }} MB</span>
+  </form>
+  {% endif %}
+</div>
+{{ comments_card(comments, 'control', c.id) }}
+{{ history_card(history, 'control') }}
+{% endblock %}

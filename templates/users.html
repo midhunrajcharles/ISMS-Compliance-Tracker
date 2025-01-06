@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Users &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Users</h1>
+    <p>Who can sign in, and what each person may change &middot; control A.5.15 access control</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><h2>Accounts</h2><span class="hint">{{ users|length }} people</span></div>
+  <div class="t-wrap">
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Email</th><th>Role</th><th>Reset password</th></tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.name }}{% if u.id == g.user.id %} <span class="help">(you)</span>{% endif %}</td>
+        <td>{{ u.email }}</td>
+        <td>
+          {% if u.id == g.user.id %}
+            <span class="role-tag">{{ u.role }}</span>
+          {% else %}
+          <form method="post" action="{{ url_for('user_update', user_id=u.id) }}" class="inline-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="role">
+            <select name="role" aria-label="Role for {{ u.name }}">
+              {% for r in roles %}<option value="{{ r }}" {{ 'selected' if u.role == r }}>{{ r }}</option>{% endfor %}
+            </select>
+            <button class="btn sm ghost" type="submit">Save</button>
+          </form>
+          {% endif %}
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('user_update', user_id=u.id) }}" class="inline-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="password">
+            <input type="password" name="password" minlength="8" placeholder="New password"
+                   autocomplete="new-password" aria-label="New password for {{ u.name }}">
+            <button class="btn sm ghost" type="submit">Reset</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<form method="post" style="margin-top: 22px"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="card-head"><h2>Add a person</h2><span class="hint">There is no public sign-up</span></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div>
+          <label class="fl" for="name">Name</label>
+          <input type="text" id="name" name="name" required value="{{ form.name or '' }}">
+        </div>
+        <div>
+          <label class="fl" for="email">Email</label>
+          <input type="email" id="email" name="email" required value="{{ form.email or '' }}">
+        </div>
+        <div>
+          <label class="fl" for="role">Role</label>
+          <select id="role" name="role">
+            {% for r, what in roles.items() %}
+              <option value="{{ r }}" {{ 'selected' if (form.role or 'viewer') == r }}>{{ r }} &mdash; {{ what }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="fl" for="password">First password</label>
+          <input type="password" id="password" name="password" required minlength="8" autocomplete="new-password">
+          <div class="help">At least 8 characters. They can change it on their profile page.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="btn" type="submit">Create account</button>
+</form>
+{% endblock %}

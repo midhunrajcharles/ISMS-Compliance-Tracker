@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}My profile &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ g.user.name }}</h1>
+    <p>{{ g.user.email }} &middot; <span class="role-tag">{{ g.user.role }}</span> &middot; {{ roles[g.user.role] }}</p>
+  </div>
+</div>
+
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card" style="max-width: 520px">
+    <div class="card-head"><h2>Change password</h2></div>
+    <div class="card-body">
+      <label class="fl" for="current">Current password</label>
+      <input type="password" id="current" name="current" required autocomplete="current-password">
+
+      <label class="fl" for="new" style="margin-top: 14px">New password</label>
+      <input type="password" id="new" name="new" required minlength="8" autocomplete="new-password">
+      <div class="help">At least 8 characters.</div>
+
+      <label class="fl" for="confirm" style="margin-top: 14px">New password again</label>
+      <input type="password" id="confirm" name="confirm" required minlength="8" autocomplete="new-password">
+
+      <button class="btn" type="submit" style="margin-top: 18px">Change password</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

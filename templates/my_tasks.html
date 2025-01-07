@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{{ 'My tasks' if person.id == g.user.id else person.name ~ '’s tasks' }} &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ 'My tasks' if person.id == g.user.id else person.name ~ '’s tasks' }}</h1>
+    <p>
+      {{ tasks|length }} open
+      {% if overdue_refs %}&middot; <span class="due-late">{{ overdue_refs|length }} overdue</span>{% endif %}
+      &middot; soonest due first, as at {{ today.strftime('%d %B %Y') }}
+    </p>
+  </div>
+  <form method="get" class="inline-form">
+    <label class="fl" for="user" style="margin: 0">Show tasks for</label>
+    <select id="user" name="user" onchange="this.form.submit()">
+      {% for p in people() %}
+        <option value="{{ p.id }}" {{ 'selected' if p.id == person.id }}>{{ p.name }}</option>
+      {% endfor %}
+    </select>
+    <noscript><button class="btn sm ghost" type="submit">Show</button></noscript>
+  </form>
+</div>
+
+<div class="card">
+  {% if tasks %}
+  <div class="t-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:90px">Type</th>
+          <th style="width:90px">Ref</th>
+          <th>What</th>
+          <th style="width:120px">Status</th>
+          <th style="width:130px">Due</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tasks %}
+        {% set late = t.ref in overdue_refs %}
+        <tr class="{{ 'overdue' if late }}">
+          <td><span class="kind-tag">{{ t.kind }}</span></td>
+          <td><a href="{{ task_url(t) }}">{{ t.ref }}</a></td>
+          <td>{{ t.what|truncate(110, true, '…') }}</td>
+          <td><span class="pill {{ status_class(t.status) }}">{{ t.status }}</span></td>
+          <td>
+            {% if t.due %}
+              {% set days = t.due|days_until %}
+              <span class="{{ 'due-late' if late }}">{{ t.due }}</span>
+              <div class="help">
+                {% if days < 0 %}{{ -days }} day{{ 's' if days < -1 }} late
+                {% elif days == 0 %}due today
+                {% else %}in {{ days }} day{{ 's' if days > 1 }}{% endif %}
+              </div>
+            {% else %}
+              <span class="muted">no date</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <div class="empty">Nothing assigned{{ '' if person.id == g.user.id else ' to ' ~ person.name }}. Tasks appear here when someone picks this person under &ldquo;Assigned to&rdquo;.</div>
+  {% endif %}
+</div>
+{% endblock %}

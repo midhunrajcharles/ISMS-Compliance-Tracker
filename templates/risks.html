@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Risk register &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Information security risk register</h1>
+    <p>{{ stats.total }} risks assessed &middot; {{ stats.open }} open &middot; clauses 6.1.2 and 8.2</p>
+  </div>
+  <div class="head-actions">
+    <a class="btn ghost" href="{{ url_for('export_csv', kind='risks') }}">Export CSV</a>
+    {% if can_write('risk_form') %}<a class="btn" href="{{ url_for('risk_form') }}">Add risk</a>{% endif %}
+  </div>
+</div>
+
+<div class="grid c2">
+  <div class="card">
+    <div class="card-head">
+      <h2>Residual risk heat map</h2>
+      <span class="hint">Open risks, positioned after planned treatment</span>
+    </div>
+    <div class="card-body">
+      <table class="matrix">
+        <tr>
+          <th></th>
+          <th colspan="5" style="padding-bottom:6px">Impact &rarr;</th>
+        </tr>
+        {% for l in [5, 4, 3, 2, 1] %}
+        <tr>
+          <th class="side">{{ l }}</th>
+          {% for i in [1, 2, 3, 4, 5] %}
+            {% set score = l * i %}
+            {% set refs = matrix[(l, i)] %}
+            {% set cls = 'm-low' if score <= 4 else 'm-med' if score <= 9 else 'm-high' if score <= 14 else 'm-crit' %}
+            <td>
+              <div class="cell {{ cls }}" title="Likelihood {{ l }} &times; impact {{ i }} = {{ score }}">
+                {{ score }}
+                {% if refs %}<span class="refs">{{ refs|join(' ') }}</span>{% endif %}
+              </div>
+            </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+        <tr>
+          <th class="side" style="vertical-align:top">Lik.</th>
+          {% for i in [1, 2, 3, 4, 5] %}<th>{{ i }}</th>{% endfor %}
+        </tr>
+      </table>
+      <p class="small muted" style="margin: 10px 0 0">
+        Bands: 1&ndash;4 low, 5&ndash;9 medium, 10&ndash;14 high, 15&ndash;25 critical.
+        A risk is plotted at its residual position where a treatment plan exists,
+        otherwise at its inherent position.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Distribution</h2></div>
+    <div class="card-body">
+      {% set colours = {'Low': '#1f9d55', 'Medium': '#c47f0a', 'High': '#b4530a', 'Critical': '#cc2f3e'} %}
+      {% for band in ['Critical', 'High', 'Medium', 'Low'] %}
+      <div class="theme-row">
+        <div class="nm">{{ band }}</div>
+        <div class="bar">
+          <span style="width: {{ (100 * stats.bands[band] / stats.total) if stats.total else 0 }}%;
+                       background: {{ colours[band] }}"></span>
+        </div>
+        <div class="pc">{{ stats.bands[band] }}</div>
+      </div>
+      {% endfor %}
+      <p class="small muted" style="margin: 14px 0 0">
+        Every risk in this register carries a documented treatment decision:
+        modify, retain, avoid or share. Risk acceptance sits with the named owner.
+      </p>
+    </div>
+  </div>
+</div>
+
+<form class="toolbar" method="get">
+  <div class="fld">
+    <label class="fl" for="status">Status</label>
+    <select id="status" name="status">
+      <option value="">All</option>
+      {% for s in statuses %}
+        <option value="{{ s }}" {{ 'selected' if sel_status == s }}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn" type="submit">Filter</button>
+  <a class="btn ghost" href="{{ url_for('risks') }}">Reset</a>
+</form>
+
+<div class="card">
+  <div class="card-head">
+    <h2>{{ risks|length }} risk{{ '' if risks|length == 1 else 's' }}</h2>
+    <span class="hint">Ordered by residual exposure</span>
+  </div>
+  <div class="t-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Ref</th>
+          <th>Asset and threat</th>
+          <th class="nowrap">Inherent</th>
+          <th class="nowrap">Residual</th>
+          <th>Treatment</th>
+          <th>Owner</th>
+          <th>Target</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in risks %}
+        {% set inh = risk_score(r.likelihood, r.impact) %}
+        {% set res = risk_score(r.res_likelihood or r.likelihood, r.res_impact or r.impact) %}
+        <tr>
+          <td class="mono nowrap"><a href="{{ url_for('risk_form', risk_id=r.id) }}">{{ r.ref }}</a></td>
+          <td>
+            <strong>{{ r.asset }}</strong>
+            <div class="small muted">{{ r.threat }}</div>
+          </td>
+          <td class="nowrap">
+            <span class="pill {{ risk_level_class(risk_level(inh)) }}">{{ inh }}</span>
+          </td>
+          <td class="nowrap">
+            <span class="pill {{ risk_level_class(risk_level(res)) }}">{{ res }}</span>
+          </td>
+          <td class="small">{{ r.treatment }}</td>
+          <td class="small">{{ r.owner }}</td>
+          <td class="small nowrap">{{ r.target_date or '—' }}</td>
+          <td><span class="pill {{ status_class(r.status) }}">{{ r.status }}</span></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8" class="empty">No risks match the current filter.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

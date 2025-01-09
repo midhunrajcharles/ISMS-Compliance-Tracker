@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% from "_comments.html" import comments_card with context %}
+{% from "_activity.html" import history_card with context %}
+{% block title %}{{ risk.ref if risk and risk.id else 'New risk' }} &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ risk.ref ~ ' — ' ~ risk.asset if risk and risk.id else ('Copy of ' ~ copied_from.ref if copied_from else 'Add a risk') }}</h1>
+    <p>Risk assessment and treatment &middot; ISO/IEC 27001:2022 clauses 6.1.2 and 6.1.3</p>
+  </div>
+  <div class="head-actions">
+    {% if risk and risk.id %}
+      {% if can_write('risk_form') %}<a class="btn ghost" href="{{ url_for('risk_form', **{'from': risk.id}) }}">Duplicate</a>{% endif %}
+      {% if can_write('delete_item') %}<a class="btn ghost danger-text" href="{{ url_for('delete_item', kind='risk', item_id=risk.id) }}">Delete</a>{% endif %}
+    {% endif %}
+    <a class="btn ghost" href="{{ url_for('risks') }}">&larr; Back to register</a>
+  </div>
+</div>
+{% if copied_from %}
+<div class="note-box">A copy of {{ copied_from.ref }}. Change what differs, then press <strong>Create risk</strong>. Nothing is saved until then.</div>
+{% endif %}
+
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="card-head">
+      <h2>Risk identification</h2>
+      <span class="hint">Asset &rarr; threat &rarr; vulnerability</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div>
+          <label class="fl" for="asset">Asset at risk</label>
+          <input type="text" id="asset" name="asset" required value="{{ risk.asset if risk else '' }}">
+        </div>
+        <div>
+          <label class="fl" for="asset_type">Asset type</label>
+          <select id="asset_type" name="asset_type">
+            {% for t in asset_types %}
+              <option value="{{ t }}" {{ 'selected' if risk and risk.asset_type == t }}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="full">
+          <label class="fl" for="threat">Threat</label>
+          <input type="text" id="threat" name="threat" value="{{ risk.threat if risk else '' }}"
+                 placeholder="What could happen to the asset">
+        </div>
+        <div class="full">
+          <label class="fl" for="vulnerability">Vulnerability</label>
+          <textarea id="vulnerability" name="vulnerability">{{ risk.vulnerability if risk else '' }}</textarea>
+          <div class="help">The weakness that would allow the threat to be realised.</div>
+        </div>
+        <div class="full">
+          <label class="fl" for="existing_controls">Controls already in place</label>
+          <textarea id="existing_controls" name="existing_controls">{{ risk.existing_controls if risk else '' }}</textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid c2">
+    <div class="card">
+      <div class="card-head">
+        <h2>Inherent assessment</h2>
+        <span class="hint">Before treatment</span>
+      </div>
+      <div class="card-body">
+        <div class="form-grid">
+          <div>
+            <label class="fl" for="likelihood">Likelihood (1&ndash;5)</label>
+            <select id="likelihood" name="likelihood">
+              {% for n in range(1, 6) %}
+                <option value="{{ n }}" {{ 'selected' if risk and risk.likelihood == n }}>{{ n }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="fl" for="impact">Impact (1&ndash;5)</label>
+            <select id="impact" name="impact">
+              {% for n in range(1, 6) %}
+                <option value="{{ n }}" {{ 'selected' if risk and risk.impact == n }}>{{ n }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        {% if risk %}
+          {% set inh = risk_score(risk.likelihood, risk.impact) %}
+          <p style="margin: 14px 0 0">
+            Current inherent score:
+            <span class="pill {{ risk_level_class(risk_level(inh)) }}">{{ inh }} &middot; {{ risk_level(inh) }}</span>
+          </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Residual assessment</h2>
+        <span class="hint">Once treatment is effective</span>
+      </div>
+      <div class="card-body">
+        <div class="form-grid">
+          <div>
+            <label class="fl" for="res_likelihood">Residual likelihood</label>
+            <select id="res_likelihood" name="res_likelihood">
+              <option value="">Not yet assessed</option>
+              {% for n in range(1, 6) %}
+                <option value="{{ n }}" {{ 'selected' if risk and risk.res_likelihood == n }}>{{ n }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="fl" for="res_impact">Residual impact</label>
+            <select id="res_impact" name="res_impact">
+              <option value="">Not yet assessed</option>
+              {% for n in range(1, 6) %}
+                <option value="{{ n }}" {{ 'selected' if risk and risk.res_impact == n }}>{{ n }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        {% if risk and risk.res_likelihood and risk.res_impact %}
+          {% set res = risk_score(risk.res_likelihood, risk.res_impact) %}
+          <p style="margin: 14px 0 0">
+            Current residual score:
+            <span class="pill {{ risk_level_class(risk_level(res)) }}">{{ res }} &middot; {{ risk_level(res) }}</span>
+          </p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Treatment</h2>
+      <span class="hint">Clause 6.1.3</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div>
+          <label class="fl" for="treatment">Treatment option</label>
+          <select id="treatment" name="treatment">
+            {% for t in treatments %}
+              <option value="{{ t }}" {{ 'selected' if risk and risk.treatment == t }}>{{ t }}</option>
+            {% endfor %}
+          </select>
+          <div class="help">Modify, retain, avoid or share.</div>
+        </div>
+        <div>
+          <label class="fl" for="status">Status</label>
+          <select id="status" name="status">
+            {% for s in statuses %}
+              <option value="{{ s }}" {{ 'selected' if risk and risk.status == s }}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="full">
+          <label class="fl" for="treatment_plan">Treatment plan</label>
+          <textarea id="treatment_plan" name="treatment_plan">{{ risk.treatment_plan if risk else '' }}</textarea>
+        </div>
+        <div>
+          <label class="fl" for="owner">Risk owner</label>
+          <input type="text" id="owner" name="owner" value="{{ risk.owner if risk else '' }}">
+        </div>
+        <div>
+            <label class="fl" for="assignee_id">Assigned to</label>
+            <select id="assignee_id" name="assignee_id">
+              <option value="">&mdash; nobody yet &mdash;</option>
+              {% for p in people() %}
+                <option value="{{ p.id }}" {{ 'selected' if risk and risk.assignee_id == p.id }}>{{ p.name }} ({{ p.role }})</option>
+              {% endfor %}
+            </select>
+            <div class="help">The person doing the work. It appears in their &ldquo;My tasks&rdquo;.</div>
+          </div>
+        <div>
+          <label class="fl" for="target_date">Target completion date</label>
+          <input type="date" id="target_date" name="target_date" value="{{ risk.target_date if risk else '' }}">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Annex A controls applied</h2>
+      <span class="hint">Links this risk into the Statement of Applicability</span>
+    </div>
+    <div class="card-body">
+      <div class="checks">
+        {% for c in all_controls %}
+          <label>
+            <input type="checkbox" name="controls" value="{{ c.ref }}"
+                   {{ 'checked' if c.ref in linked }}>
+            <span><span class="mono">{{ c.ref }}</span> {{ c.title }}</span>
+          </label>
+        {% endfor %}
+      </div>
+      <div class="help">
+        Selecting a control here records that it is being relied on to treat this risk,
+        which is the justification an auditor expects to see for including it.
+      </div>
+    </div>
+  </div>
+
+  {% if can_write(request.endpoint) %}<button class="btn" type="submit">{{ 'Save risk' if risk and risk.id else 'Create risk' }}</button>{% else %}<span class="readonly-note">Read only for your role</span>{% endif %}
+  <a class="btn ghost" href="{{ url_for('risks') }}">Cancel</a>
+</form>
+{% if risk and risk.id %}
+{{ comments_card(comments, 'risk', risk.id) }}
+{{ history_card(history, 'risk') }}
+{% endif %}
+{% endblock %}

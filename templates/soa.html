@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Statement of Applicability &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head no-print">
+  <div>
+    <h1>Statement of Applicability</h1>
+    <p>ISO/IEC 27001:2022 clause 6.1.3(d) &middot; generated {{ today.strftime('%d %B %Y') }}</p>
+  </div>
+  <div class="head-actions">
+    <button class="btn ghost" type="button" onclick="window.print()">Print / save as PDF</button>
+    <a class="btn" href="{{ url_for('soa_export') }}">Export CSV</a>
+  </div>
+</div>
+
+<div class="print-only print-title">
+  <div><strong>Statement of Applicability</strong> &middot; ISO/IEC 27001:2022 clause 6.1.3(d)</div>
+  <div>Generated {{ today.strftime('%d %B %Y') }} &middot; {{ stats.total }} controls, {{ stats.applicable }} applicable,
+       {{ stats.excluded }} excluded &middot; weighted completion {{ stats.percent }}% &middot; printed by {{ g.user.name }}</div>
+</div>
+
+<div class="note-box no-print">
+  The Statement of Applicability is the single document a certification body
+  examines first. It must list all 93 Annex A controls, state whether each is
+  applicable, justify that decision, and record the current implementation
+  status. This page is generated directly from the control register, so it can
+  never drift out of step with it.
+</div>
+
+<div class="grid c4 no-print">
+  <div class="card stat">
+    <div class="label">Controls listed</div>
+    <div class="value">{{ stats.total }}</div>
+    <div class="note">Complete Annex A</div>
+  </div>
+  <div class="card stat">
+    <div class="label">Applicable</div>
+    <div class="value">{{ stats.applicable }}</div>
+    <div class="note">Included in the ISMS scope</div>
+  </div>
+  <div class="card stat">
+    <div class="label">Excluded</div>
+    <div class="value">{{ stats.excluded }}</div>
+    <div class="note">Each with recorded justification</div>
+  </div>
+  <div class="card stat">
+    <div class="label">Weighted completion</div>
+    <div class="value">{{ stats.percent }}%</div>
+    <div class="bar"><span style="width: {{ stats.percent }}%"></span></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>Control listing</h2>
+    <span class="hint">Use &ldquo;Print / save as PDF&rdquo; for a clean copy for the auditor</span>
+  </div>
+  <div class="t-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:66px">Ref</th>
+          <th style="width:212px">Control</th>
+          <th style="width:74px">Applicable</th>
+          <th>Justification</th>
+          <th style="width:106px">Status</th>
+          <th style="width:136px">Owner</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for c in controls %}
+        <tr class="{{ 'excluded' if not c.applicable }}">
+          <td class="mono nowrap"><a href="{{ url_for('control_detail', ref=c.ref) }}">{{ c.ref }}</a></td>
+          <td>{{ c.title }}</td>
+          <td>
+            {% if c.applicable %}
+              <span class="pill st-ver">Yes</span>
+            {% else %}
+              <span class="pill st-none">No</span>
+            {% endif %}
+          </td>
+          <td class="small">{{ c.justification }}</td>
+          <td>
+            {% if c.applicable %}
+              <span class="pill {{ status_class(c.status) }}">{{ c.status }}</span>
+            {% else %}
+              <span class="muted small">n/a</span>
+            {% endif %}
+          </td>
+          <td class="small">{{ c.owner }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

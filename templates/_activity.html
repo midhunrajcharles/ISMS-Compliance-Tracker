@@ -1,0 +1,54 @@
+{#- One line of history, e.g. "Ravi changed status of A.8.13 from In Progress to Verified".
+    show_ref=False drops the record name on its own detail page. -#}
+{% macro value(v) -%}
+  <span class="val">{{ v|truncate(60, true, '…') }}</span>
+{%- endmacro %}
+
+{% macro item(a, show_ref=true) -%}
+{%- set url = activity_url(a) if show_ref else none -%}
+{%- set target -%}
+  {%- if show_ref -%}
+    {{ a.entity_type }} {% if url %}<a href="{{ url }}">{{ a.entity_ref }}</a>{% else %}{{ a.entity_ref }}{% endif %}
+  {%- endif -%}
+{%- endset -%}
+<li class="act">
+  <div class="act-text">
+    <strong>{{ a.user_name }}</strong>
+    {% if a.action == 'updated' -%}
+      {%- set label = field_label(a.field) -%}
+      {% if not a.old_value %}set {{ label }}{% if show_ref %} of {{ target }}{% endif %} to {{ value(a.new_value) }}
+      {% elif not a.new_value %}cleared {{ label }}{% if show_ref %} of {{ target }}{% endif %}
+      {% else %}changed {{ label }}{% if show_ref %} of {{ target }}{% endif %} from {{ value(a.old_value) }} to {{ value(a.new_value) }}
+      {% endif %}
+    {%- elif a.action == 'created' -%}
+      created {% if show_ref %}{{ target }}{% else %}this {{ a.entity_type }}{% endif %}
+      {%- if a.field == 'role' %} as {{ value(a.new_value) }}{% endif %}
+    {%- elif a.action == 'deleted' -%}
+      deleted {{ a.entity_type }} {{ a.entity_ref }}{% if a.old_value %} ({{ value(a.old_value) }}){% endif %}
+    {%- elif a.action == 'commented' -%}
+      commented{% if show_ref %} on {{ target }}{% endif %}: {{ value(a.new_value) }}
+    {%- elif a.action == 'uploaded evidence' -%}
+      uploaded {{ value(a.new_value) }}{% if show_ref %} to {{ target }}{% endif %}
+    {%- elif a.action == 'deleted evidence' -%}
+      deleted {{ value(a.old_value) }}{% if show_ref %} from {{ target }}{% endif %}
+    {%- else -%}
+      {{ a.action }}{% if show_ref %} for {{ target }}{% endif %}
+    {%- endif %}
+  </div>
+  <time class="act-time" datetime="{{ a.at }}Z" title="{{ a.at }} UTC">{{ a.at|ago }}</time>
+</li>
+{%- endmacro %}
+
+{% macro history_card(rows, what) -%}
+<div class="card" style="margin-top: 22px">
+  <div class="card-head">
+    <h2>History</h2>
+    <span class="hint">Who changed this {{ what }}, and when</span>
+  </div>
+  {% if rows %}
+    <ul class="act-list">{% for a in rows %}{{ item(a, show_ref=false) }}{% endfor %}</ul>
+  {% else %}
+    <div class="empty">No changes recorded yet. Every save from now on appears here.</div>
+  {% endif %}
+</div>
+{%- endmacro %}

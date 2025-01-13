@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "_activity.html" import item with context %}
+{% block title %}Activity &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Activity</h1>
+    <p>Every change anyone made, newest first &middot; the audit trail behind the register</p>
+  </div>
+</div>
+
+<div class="card">
+  {% if activity %}
+    <ul class="act-list">{% for a in activity %}{{ item(a) }}{% endfor %}</ul>
+  {% else %}
+    <div class="empty">Nothing has changed yet. Save a control, risk, document or finding and it shows up here.</div>
+  {% endif %}
+</div>
+{% endblock %}

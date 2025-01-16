@@ -1,0 +1,36 @@
+{#- Discussion thread under a control, risk or finding. -#}
+{% macro comments_card(comments, entity_type, entity_id) -%}
+<div class="card" id="comments" style="margin-top: 22px">
+  <div class="card-head">
+    <h2>Comments</h2>
+    <span class="hint">{{ comments|length }} so far</span>
+  </div>
+  {% if comments %}
+    <ul class="act-list">
+      {% for cm in comments %}
+      <li class="act">
+        <div class="act-text">
+          <strong>{{ cm.user_name }}</strong>
+          <div class="comment-body">{{ cm.body }}</div>
+        </div>
+        <time class="act-time" datetime="{{ cm.at }}Z" title="{{ cm.at }} UTC">{{ cm.at|ago }}</time>
+      </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="empty">No comments yet.</div>
+  {% endif %}
+
+  {% if can_write('comment_add') %}
+  <form method="post" action="{{ url_for('comment_add') }}" class="card-body comment-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="entity_type" value="{{ entity_type }}">
+    <input type="hidden" name="entity_id" value="{{ entity_id }}">
+    <label class="fl" for="comment-body">Add a comment</label>
+    <textarea id="comment-body" name="body" required maxlength="2000"
+              placeholder="e.g. Waiting on IT for the backup restore test"></textarea>
+    <button class="btn sm" type="submit" style="margin-top: 8px">Post comment</button>
+  </form>
+  {% endif %}
+</div>
+{%- endmacro %}

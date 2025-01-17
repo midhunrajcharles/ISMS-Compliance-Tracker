@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+{% from "_activity.html" import item with context %}
+{% block title %}Dashboard &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Certification readiness</h1>
+    <p>ISO/IEC 27001:2022 &middot; position as at {{ today.strftime('%d %B %Y') }}</p>
+  </div>
+  <a class="btn ghost" href="{{ url_for('gap') }}">View gap analysis</a>
+</div>
+
+{# ------------------------------------------------------------ headline #}
+<div class="grid c4">
+  <div class="card stat">
+    <div class="label">Overall readiness</div>
+    <div class="value">{{ stats.overall }}%</div>
+    <div class="note">Controls 60% &middot; clauses 20% &middot; documents 20%</div>
+    <div class="bar {{ 'r' if stats.overall < 40 else 'a' if stats.overall < 75 else 'g' }}">
+      <span style="width: {{ stats.overall }}%"></span>
+    </div>
+  </div>
+
+  <div class="card stat">
+    <div class="label">Annex A controls</div>
+    <div class="value">{{ stats.controls.percent }}%</div>
+    <div class="note">{{ stats.controls.applicable }} applicable &middot; {{ stats.controls.excluded }} excluded</div>
+    <div class="bar"><span style="width: {{ stats.controls.percent }}%"></span></div>
+  </div>
+
+  <div class="card stat">
+    <div class="label">Open risks</div>
+    <div class="value">{{ stats.risks.open }}</div>
+    <div class="note">
+      {{ stats.risks.bands.Critical }} critical &middot; {{ stats.risks.bands.High }} high
+    </div>
+    <div class="bar r">
+      <span style="width: {{ (100 * (stats.risks.bands.Critical + stats.risks.bands.High) / stats.risks.total) if stats.risks.total else 0 }}%"></span>
+    </div>
+  </div>
+
+  <div class="card stat">
+    <div class="label">Open nonconformities</div>
+    <div class="value">{{ stats.findings.open }}</div>
+    <div class="note">{{ stats.findings.major_open }} major &middot; {{ stats.findings.total }} raised in total</div>
+    <div class="bar {{ 'r' if stats.findings.major_open else 'a' }}">
+      <span style="width: {{ (100 * stats.findings.open / stats.findings.total) if stats.findings.total else 0 }}%"></span>
+    </div>
+  </div>
+</div>
+
+{% if stats.findings.major_open %}
+<div class="note-box bad">
+  <strong>{{ stats.findings.major_open }} major nonconformit{{ 'y' if stats.findings.major_open == 1 else 'ies' }} remain open.</strong>
+  A certification body will not issue a certificate while a major nonconformity is outstanding.
+</div>
+{% endif %}
+
+{# ------------------------------------------------- readiness over time #}
+{% if trend.points|length > 1 %}
+{% set last = trend.points[-1] %}
+<div class="card" style="margin-bottom: 18px">
+  <div class="card-head">
+    <h2>Overall readiness over time</h2>
+    <span class="hint">One reading a day, taken when the dashboard is opened</span>
+  </div>
+  <div class="card-body">
+    <div class="trend" id="trend">
+      <svg viewBox="0 0 {{ trend.width }} {{ trend.height }}" role="img"
+           aria-label="Overall readiness rose from {{ trend.points[0].overall }}% on {{ trend.points[0].long }} to {{ last.overall }}% on {{ last.long }}">
+        {% for gl in trend.grid %}
+          <line class="grid-line" x1="{{ trend.left }}" x2="{{ trend.right }}" y1="{{ gl.y }}" y2="{{ gl.y }}"/>
+          <text class="axis-label" x="{{ trend.left - 8 }}" y="{{ gl.y + 4 }}" text-anchor="end">{{ gl.label }}</text>
+        {% endfor %}
+        {% set mid = trend.points[(trend.points|length) // 2] %}
+        {% for p in [trend.points[0], mid, last] %}
+          <text class="axis-label" x="{{ p.x }}" y="{{ trend.baseline + 19 }}" text-anchor="middle">{{ p.label }}</text>
+        {% endfor %}
+        <line class="crosshair" id="trend-cross" x1="0" x2="0" y1="{{ trend.top }}" y2="{{ trend.baseline }}"/>
+        <path class="trend-line" d="{{ trend.path }}"/>
+        {% for p in trend.points %}
+          <circle class="trend-dot" cx="{{ p.x }}" cy="{{ p.y }}" r="4"/>
+        {% endfor %}
+        <text class="trend-end" x="{{ last.x + 10 }}" y="{{ last.y + 4 }}">{{ last.overall }}%</text>
+        {% for p in trend.points %}
+          <rect class="hit" x="{{ p.x - trend.band / 2 }}" y="{{ trend.top }}" width="{{ trend.band }}"
+                height="{{ trend.baseline - trend.top }}"
+                data-x="{{ p.x }}" data-y="{{ p.y }}" data-day="{{ p.long }}" data-overall="{{ p.overall }}"
+                data-controls="{{ p.controls }}" data-clauses="{{ p.clauses }}" data-documents="{{ p.documents }}"/>
+        {% endfor %}
+      </svg>
+      <div class="chart-tip" id="trend-tip" role="status" hidden></div>
+    </div>
+    <details class="chart-table">
+      <summary>Show as a table</summary>
+      <table>
+        <thead><tr><th>Date</th><th>Overall</th><th>Controls</th><th>Clauses</th><th>Documents</th></tr></thead>
+        <tbody>
+          {% for p in trend.points|reverse %}
+          <tr><td>{{ p.long }}</td><td>{{ p.overall }}%</td><td>{{ p.controls }}%</td><td>{{ p.clauses }}%</td><td>{{ p.documents }}%</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </details>
+  </div>
+</div>
+<script>
+  // Hover or tap a reading: crosshair + tooltip. The table above holds the same data.
+  (function () {
+    var box = document.getElementById("trend");
+    var svg = box.querySelector("svg");
+    var tip = document.getElementById("trend-tip");
+    var cross = document.getElementById("trend-cross");
+    function show(r) {
+      var vb = svg.viewBox.baseVal, rect = svg.getBoundingClientRect();
+      var sx = rect.width / vb.width, sy = rect.height / vb.height;
+      var x = parseFloat(r.dataset.x), y = parseFloat(r.dataset.y);
+      cross.setAttribute("x1", x); cross.setAttribute("x2", x);
+      cross.style.opacity = 1;
+      tip.innerHTML = "";
+      var d = document.createElement("div"); d.className = "tip-day"; d.textContent = r.dataset.day;
+      var v = document.createElement("div"); v.className = "tip-value"; v.textContent = r.dataset.overall + "% overall";
+      var s = document.createElement("div"); s.className = "tip-sub";
+      s.textContent = "Controls " + r.dataset.controls + "% · clauses " + r.dataset.clauses +
+                      "% · documents " + r.dataset.documents + "%";
+      tip.append(d, v, s);
+      tip.hidden = false;
+      var left = x * sx + 12;
+      if (left + tip.offsetWidth > rect.width) left = x * sx - tip.offsetWidth - 12;
+      tip.style.left = Math.max(0, left) + "px";
+      tip.style.top = Math.max(0, y * sy - tip.offsetHeight / 2) + "px";
+    }
+    function hide() { tip.hidden = true; cross.style.opacity = 0; }
+    svg.querySelectorAll(".hit").forEach(function (r) {
+      r.addEventListener("mouseenter", function () { show(r); });
+      r.addEventListener("click", function () { show(r); });
+    });
+    svg.addEventListener("mouseleave", hide);
+  })();
+</script>
+{% endif %}
+
+{# ------------------------------------------------------ recent activity #}
+<div class="card" style="margin-bottom: 18px">
+  <div class="card-head">
+    <h2>Recent activity</h2>
+    <a class="hint" href="{{ url_for('activity') }}">See all &rarr;</a>
+  </div>
+  {% if activity %}
+    <ul class="act-list">{% for a in activity %}{{ item(a) }}{% endfor %}</ul>
+  {% else %}
+    <div class="empty">No changes yet. When someone saves a control, risk, document or finding, it appears here.</div>
+  {% endif %}
+</div>
+
+{# ------------------------------------------------------- charts + theme #}
+<div class="grid c2">
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Control implementation status</h2>
+      <span class="hint">{{ stats.controls.applicable }} applicable controls</span>
+    </div>
+    <div class="card-body">
+      {% set counts = stats.controls.counts %}
+      {% set total = stats.controls.applicable %}
+      {% set colours = {'Not Started': 'var(--c-none)', 'In Progress': 'var(--c-prog)',
+                        'Implemented': 'var(--c-impl)', 'Verified': 'var(--c-ver)'} %}
+      <div class="donut-wrap">
+        <div class="donut">
+          <svg viewBox="0 0 132 132" width="132" height="132">
+            <circle cx="66" cy="66" r="54" fill="none" style="stroke: var(--grey-bg)" stroke-width="19"/>
+            {% set ns = namespace(offset=0) %}
+            {% for status in ['Verified', 'Implemented', 'In Progress', 'Not Started'] %}
+              {% set n = counts.get(status, 0) %}
+              {% if n and total %}
+                {% set frac = n / total %}
+                {% set circ = 339.29 %}
+                <circle cx="66" cy="66" r="54" fill="none"
+                        style="stroke: {{ colours[status] }}" stroke-width="19"
+                        stroke-dasharray="{{ (frac * circ)|round(2) }} {{ (circ - frac * circ)|round(2) }}"
+                        stroke-dashoffset="{{ (-ns.offset * circ)|round(2) }}"
+                        transform="rotate(-90 66 66)"/>
+                {% set ns.offset = ns.offset + frac %}
+              {% endif %}
+            {% endfor %}
+          </svg>
+          <div class="mid">
+            <div class="n">{{ stats.controls.percent }}%</div>
+            <div class="l">weighted</div>
+          </div>
+        </div>
+        <ul class="legend">
+          {% for status in ['Verified', 'Implemented', 'In Progress', 'Not Started'] %}
+          <li>
+            <span class="sw" style="background: {{ colours[status] }}"></span>
+            <a href="{{ url_for('controls', status=status) }}">{{ status }}</a>
+            <span class="n">{{ counts.get(status, 0) }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <p class="small muted" style="margin: 12px 0 0">
+        Weighting: verified 100%, implemented 80%, in progress 40%. A control is only
+        counted in full once its operation has been independently verified.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Progress by control theme</h2>
+      <span class="hint">ISO/IEC 27002:2022 themes</span>
+    </div>
+    <div class="card-body">
+      {% for t in themes %}
+      <div class="theme-row">
+        <div class="nm">
+          <a href="{{ url_for('controls', theme=t.theme) }}">{{ t.theme }}</a>
+        </div>
+        <div class="bar {{ 'r' if t.percent < 40 else 'a' if t.percent < 75 else 'g' }}">
+          <span style="width: {{ t.percent }}%"></span>
+        </div>
+        <div class="pc">{{ t.percent }}%</div>
+      </div>
+      {% endfor %}
+
+      <hr style="border: 0; border-top: 1px solid var(--line); margin: 15px 0">
+
+      <div class="theme-row">
+        <div class="nm"><a href="{{ url_for('clauses') }}">Clauses 4&ndash;10</a></div>
+        <div class="bar {{ 'r' if stats.clauses.percent < 40 else 'a' if stats.clauses.percent < 75 else 'g' }}">
+          <span style="width: {{ stats.clauses.percent }}%"></span>
+        </div>
+        <div class="pc">{{ stats.clauses.percent }}%</div>
+      </div>
+      <div class="theme-row">
+        <div class="nm"><a href="{{ url_for('documents') }}">Documents approved</a></div>
+        <div class="bar {{ 'r' if stats.documents.percent < 40 else 'a' if stats.documents.percent < 75 else 'g' }}">
+          <span style="width: {{ stats.documents.percent }}%"></span>
+        </div>
+        <div class="pc">{{ stats.documents.percent }}%</div>
+      </div>
+      <p class="small muted" style="margin: 12px 0 0">
+        {{ stats.documents.approved }} of {{ stats.documents.total }} register entries are
+        approved; the remainder are in draft or under review.
+      </p>
+    </div>
+  </div>
+</div>
+
+{# --------------------------------------------------------------- risks #}
+<div class="grid c2">
+  <div class="card">
+    <div class="card-head">
+      <h2>Highest exposure risks</h2>
+      <a class="hint" href="{{ url_for('risks') }}">Full register &rarr;</a>
+    </div>
+    <div class="t-wrap">
+      <table>
+        <thead>
+          <tr><th>Ref</th><th>Asset</th><th>Score</th><th>Level</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+        {% for r in top_risks %}
+          {% set lvl = risk_level(r.score) %}
+          <tr>
+            <td class="mono nowrap"><a href="{{ url_for('risk_form', risk_id=r.id) }}">{{ r.ref }}</a></td>
+            <td>{{ r.asset }}</td>
+            <td class="mono">{{ r.score }}</td>
+            <td><span class="pill {{ risk_level_class(lvl) }}">{{ lvl }}</span></td>
+            <td><span class="pill {{ status_class(r.status) }}">{{ r.status }}</span></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Overdue corrective actions</h2>
+      <a class="hint" href="{{ url_for('audit') }}">All findings &rarr;</a>
+    </div>
+    {% if overdue_findings %}
+    <div class="t-wrap">
+      <table>
+        <thead><tr><th>Ref</th><th>Against</th><th>Severity</th><th>Due</th><th>Owner</th></tr></thead>
+        <tbody>
+        {% for f in overdue_findings %}
+          <tr>
+            <td class="mono nowrap"><a href="{{ url_for('finding_form', finding_id=f.id) }}">{{ f.ref }}</a></td>
+            <td class="mono">{{ f.clause_or_control }}</td>
+            <td><span class="pill {{ status_class(f.severity) }}">{{ f.severity }}</span></td>
+            <td class="nowrap small">{{ f.due_date }}</td>
+            <td class="small">{{ f.owner }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty">No corrective action is past its due date.</div>
+    {% endif %}
+  </div>
+</div>
+
+{# ------------------------------------------------------ clauses + review #}
+<div class="grid c2">
+  <div class="card">
+    <div class="card-head">
+      <h2>Clause requirements not yet met</h2>
+      <span class="hint">{{ blocking|length }} outstanding</span>
+    </div>
+    <div class="t-wrap">
+      <table>
+        <thead><tr><th>Clause</th><th>Requirement</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for c in blocking %}
+          <tr>
+            <td class="mono nowrap">{{ c.ref }}</td>
+            <td>{{ c.title }}</td>
+            <td><span class="pill {{ status_class(c.status) }}">{{ c.status }}</span></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Documents due for review</h2>
+      <a class="hint" href="{{ url_for('documents') }}">Register &rarr;</a>
+    </div>
+    <div class="t-wrap">
+      <table>
+        <thead><tr><th>Code</th><th>Title</th><th>Version</th><th>Next review</th></tr></thead>
+        <tbody>
+        {% for d in upcoming_reviews %}
+          {% set days = d.next_review|days_until %}
+          <tr>
+            <td class="mono nowrap"><a href="{{ url_for('document_form', doc_id=d.id) }}">{{ d.code }}</a></td>
+            <td>{{ d.title }}</td>
+            <td class="mono">{{ d.version }}</td>
+            <td class="nowrap small">
+              {{ d.next_review }}
+              {% if days is not none %}
+                <span class="muted">({{ days }}d)</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

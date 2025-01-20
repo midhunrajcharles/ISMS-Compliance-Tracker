@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}Gap analysis &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Gap analysis</h1>
+    <p>Everything still standing between the current position and certification</p>
+  </div>
+  <span class="pill {{ 'lvl-crit' if stats.overall < 50 else 'lvl-med' if stats.overall < 80 else 'lvl-low' }}"
+        style="font-size:14px; padding:6px 14px">{{ stats.overall }}% ready</span>
+</div>
+
+<div class="note-box warn">
+  Certification requires more than implemented controls. Every applicable control
+  must operate and be evidenced, every clause requirement must be met, the
+  mandatory documented information must be approved, and no major nonconformity
+  may remain open at the time of the assessment.
+</div>
+
+{# ------------------------------------------------------------- blockers #}
+<div class="card">
+  <div class="card-head">
+    <h2>Certification blockers</h2>
+    <span class="hint">Items that would stop a certificate being issued</span>
+  </div>
+  <div class="t-wrap">
+    <table>
+      <thead><tr><th style="width:66px">Count</th><th>Blocker</th><th>Consequence</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="gap-count {{ 'ok' if not major }}">{{ major|length }}</span></td>
+          <td>Open major nonconformities</td>
+          <td class="small muted">A certificate cannot be issued while any major nonconformity is open.</td>
+        </tr>
+        <tr>
+          <td><span class="gap-count {{ 'ok' if not clause_gaps }}">{{ clause_gaps|length }}</span></td>
+          <td>Clause requirements not verified</td>
+          <td class="small muted">Clauses 4&ndash;10 are mandatory and cannot be excluded.</td>
+        </tr>
+        <tr>
+          <td><span class="gap-count {{ 'ok' if not not_started }}">{{ not_started|length }}</span></td>
+          <td>Applicable controls not started</td>
+          <td class="small muted">Each requires implementation or a justified exclusion in the SoA.</td>
+        </tr>
+        <tr>
+          <td><span class="gap-count {{ 'ok' if not unapproved }}">{{ unapproved|length }}</span></td>
+          <td>Documents unapproved</td>
+          <td class="small muted">Draft documents are not evidence of a working management system.</td>
+        </tr>
+        <tr>
+          <td><span class="gap-count {{ 'ok' if not high_risks }}">{{ high_risks|length }}</span></td>
+          <td>High or critical residual risks</td>
+          <td class="small muted">Each needs treatment or formal, documented acceptance by the risk owner.</td>
+        </tr>
+        <tr>
+          <td><span class="gap-count {{ 'ok' if not uncovered }}">{{ uncovered|length }}</span></td>
+          <td>Implemented controls with no supporting document</td>
+          <td class="small muted">An undocumented control is very difficult to evidence during assessment.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ---------------------------------------------------------------- lists #}
+{% macro control_table(rows, caption) %}
+  {% if rows %}
+  <div class="card">
+    <div class="card-head">
+      <h2>{{ caption }}</h2>
+      <span class="hint">{{ rows|length }} control{{ '' if rows|length == 1 else 's' }}</span>
+    </div>
+    <div class="t-wrap">
+      <table>
+        <thead><tr><th style="width:66px">Ref</th><th>Control</th><th style="width:126px">Theme</th><th style="width:150px">Owner</th></tr></thead>
+        <tbody>
+        {% for c in rows %}
+          <tr>
+            <td class="mono nowrap"><a href="{{ url_for('control_detail', ref=c.ref) }}">{{ c.ref }}</a></td>
+            <td>{{ c.title }}</td>
+            <td class="small">{{ c.theme }}</td>
+            <td class="small">{{ c.owner }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{% if major %}
+<div class="card">
+  <div class="card-head">
+    <h2>Open major nonconformities</h2>
+    <span class="hint">{{ major|length }}</span>
+  </div>
+  <div class="t-wrap">
+    <table>
+      <thead><tr><th style="width:66px">Ref</th><th style="width:92px">Against</th><th>Finding</th><th style="width:100px">Due</th></tr></thead>
+      <tbody>
+      {% for f in major %}
+        <tr>
+          <td class="mono nowrap"><a href="{{ url_for('finding_form', finding_id=f.id) }}">{{ f.ref }}</a></td>
+          <td class="mono small">{{ f.clause_or_control }}</td>
+          <td class="small">{{ f.description }}</td>
+          <td class="small nowrap">{{ f.due_date }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if clause_gaps %}
+<div class="card">
+  <div class="card-head">
+    <h2>Clause requirements outstanding</h2>
+    <span class="hint">{{ clause_gaps|length }}</span>
+  </div>
+  <div class="t-wrap">
+    <table>
+      <thead><tr><th style="width:66px">Clause</th><th>Title</th><th>Requirement</th><th style="width:112px">Status</th></tr></thead>
+      <tbody>
+      {% for c in clause_gaps %}
+        <tr>
+          <td class="mono nowrap">{{ c.ref }}</td>
+          <td>{{ c.title }}</td>
+          <td class="small muted">{{ c.requirement }}</td>
+          <td><span class="pill {{ status_class(c.status) }}">{{ c.status }}</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{{ control_table(not_started, 'Applicable controls not started') }}
+
+{% if high_risks %}
+<div class="card">
+  <div class="card-head">
+    <h2>High and critical residual risks</h2>
+    <span class="hint">{{ high_risks|length }}</span>
+  </div>
+  <div class="t-wrap">
+    <table>
+      <thead><tr><th style="width:66px">Ref</th><th>Asset</th><th style="width:62px">Score</th><th style="width:92px">Level</th><th style="width:100px">Target</th></tr></thead>
+      <tbody>
+      {% for r in high_risks %}
+        <tr>
+          <td class="mono nowrap"><a href="{{ url_for('risk_form', risk_id=r.id) }}">{{ r.ref }}</a></td>
+          <td>{{ r.asset }}<div class="small muted">{{ r.threat }}</div></td>
+          <td class="mono">{{ r.score }}</td>
+          <td><span class="pill {{ risk_level_class(risk_level(r.score)) }}">{{ risk_level(r.score) }}</span></td>
+          <td class="small nowrap">{{ r.target_date or '—' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if unapproved %}
+<div class="card">
+  <div class="card-head">
+    <h2>Documents awaiting approval</h2>
+    <span class="hint">{{ unapproved|length }}</span>
+  </div>
+  <div class="t-wrap">
+    <table>
+      <thead><tr><th style="width:112px">Code</th><th>Title</th><th style="width:62px">Version</th><th style="width:150px">Owner</th><th style="width:112px">Status</th></tr></thead>
+      <tbody>
+      {% for d in unapproved %}
+        <tr>
+          <td class="mono nowrap"><a href="{{ url_for('document_form', doc_id=d.id) }}">{{ d.code }}</a></td>
+          <td>{{ d.title }}</td>
+          <td class="mono">{{ d.version }}</td>
+          <td class="small">{{ d.owner }}</td>
+          <td><span class="pill {{ status_class(d.status) }}">{{ d.status }}</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{{ control_table(uncovered, 'Implemented controls with no supporting document') }}
+{{ control_table(unverified, 'Implemented but not yet independently verified') }}
+{{ control_table(in_progress, 'Controls in progress') }}
+{% endblock %}

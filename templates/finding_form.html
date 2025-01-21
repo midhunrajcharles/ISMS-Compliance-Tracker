@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% from "_comments.html" import comments_card with context %}
+{% from "_activity.html" import history_card with context %}
+{% block title %}{{ f.ref if f else 'New finding' }} &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ f.ref ~ ' — ' ~ f.clause_or_control if f else 'Raise a finding' }}</h1>
+    <p>Nonconformity and corrective action &middot; clause 10.2</p>
+  </div>
+  <div class="head-actions">
+    {% if f and can_write('delete_item') %}<a class="btn ghost danger-text" href="{{ url_for('delete_item', kind='finding', item_id=f.id) }}">Delete</a>{% endif %}
+    <a class="btn ghost" href="{{ url_for('audit') }}">&larr; Back to findings</a>
+  </div>
+</div>
+
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="card-head"><h2>Finding</h2></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div>
+          <label class="fl" for="source">Source</label>
+          <select id="source" name="source">
+            {% for s in sources %}
+              <option value="{{ s }}" {{ 'selected' if f and f.source == s }}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="fl" for="raised_on">Raised on</label>
+          <input type="date" id="raised_on" name="raised_on" value="{{ f.raised_on if f else '' }}">
+        </div>
+        <div>
+          <label class="fl" for="clause_or_control">Raised against</label>
+          <input type="text" id="clause_or_control" name="clause_or_control"
+                 value="{{ f.clause_or_control if f else '' }}" placeholder="A.8.13 or Clause 9.2">
+        </div>
+        <div>
+          <label class="fl" for="severity">Severity</label>
+          <select id="severity" name="severity">
+            {% for s in severities %}
+              <option value="{{ s }}" {{ 'selected' if f and f.severity == s }}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="full">
+          <label class="fl" for="description">Description of the nonconformity</label>
+          <textarea id="description" name="description" required>{{ f.description if f else '' }}</textarea>
+          <div class="help">State the requirement, and the objective evidence showing it is not met.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Corrective action</h2>
+      <span class="hint">Root cause before remedy</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="full">
+          <label class="fl" for="root_cause">Root cause</label>
+          <textarea id="root_cause" name="root_cause">{{ f.root_cause if f else '' }}</textarea>
+          <div class="help">
+            Clause 10.2 requires the cause to be determined, not merely the symptom
+            corrected. Treating the symptom alone will not close the finding.
+          </div>
+        </div>
+        <div class="full">
+          <label class="fl" for="corrective_action">Corrective action</label>
+          <textarea id="corrective_action" name="corrective_action">{{ f.corrective_action if f else '' }}</textarea>
+        </div>
+        <div>
+          <label class="fl" for="owner">Action owner</label>
+          <input type="text" id="owner" name="owner" value="{{ f.owner if f else '' }}">
+        </div>
+        <div>
+            <label class="fl" for="assignee_id">Assigned to</label>
+            <select id="assignee_id" name="assignee_id">
+              <option value="">&mdash; nobody yet &mdash;</option>
+              {% for p in people() %}
+                <option value="{{ p.id }}" {{ 'selected' if f and f.assignee_id == p.id }}>{{ p.name }} ({{ p.role }})</option>
+              {% endfor %}
+            </select>
+            <div class="help">The person doing the work. It appears in their &ldquo;My tasks&rdquo;.</div>
+          </div>
+        <div>
+          <label class="fl" for="due_date">Due date</label>
+          <input type="date" id="due_date" name="due_date" value="{{ f.due_date if f else '' }}">
+        </div>
+        <div>
+          <label class="fl" for="status">Status</label>
+          <select id="status" name="status">
+            {% for s in statuses %}
+              <option value="{{ s }}" {{ 'selected' if f and f.status == s }}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="fl" for="closed_on">Closed on</label>
+          <input type="date" id="closed_on" name="closed_on" value="{{ f.closed_on if f else '' }}">
+          <div class="help">Left blank, this is set automatically when status becomes Closed.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if can_write(request.endpoint) %}<button class="btn" type="submit">{{ 'Save finding' if f else 'Raise finding' }}</button>{% else %}<span class="readonly-note">Read only for your role</span>{% endif %}
+  <a class="btn ghost" href="{{ url_for('audit') }}">Cancel</a>
+</form>
+{% if f %}
+{{ comments_card(comments, 'finding', f.id) }}
+{{ history_card(history, 'finding') }}
+{% endif %}
+{% endblock %}

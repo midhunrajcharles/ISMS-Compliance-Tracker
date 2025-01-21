@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Audit &amp; corrective action &middot; ISMS Compliance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Audit findings and corrective action</h1>
+    <p>{{ stats.total }} findings raised &middot; {{ stats.open }} open &middot; clauses 9.2 and 10.2</p>
+  </div>
+  <div class="head-actions">
+    <a class="btn ghost" href="{{ url_for('export_csv', kind='findings') }}">Export CSV</a>
+    {% if can_write('finding_form') %}<a class="btn" href="{{ url_for('finding_form') }}">Raise finding</a>{% endif %}
+  </div>
+</div>
+
+{% if stats.major_open %}
+<div class="note-box bad">
+  <strong>{{ stats.major_open }} major nonconformit{{ 'y is' if stats.major_open == 1 else 'ies are' }} still open.</strong>
+  Major nonconformities must be closed with verified evidence before a
+  certificate can be issued.
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-head">
+    <h2>Findings</h2>
+    <span class="hint">Open items first, then by severity</span>
+  </div>
+  <div class="t-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:66px">Ref</th>
+          <th style="width:92px">Against</th>
+          <th>Finding and corrective action</th>
+          <th style="width:96px">Severity</th>
+          <th style="width:136px">Owner</th>
+          <th style="width:100px">Due</th>
+          <th style="width:100px">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for f in findings %}
+        {% set days = f.due_date|days_until %}
+        <tr>
+          <td class="mono nowrap"><a href="{{ url_for('finding_form', finding_id=f.id) }}">{{ f.ref }}</a></td>
+          <td class="mono small">{{ f.clause_or_control }}</td>
+          <td>
+            {{ f.description }}
+            {% if f.corrective_action %}
+              <div class="small muted" style="margin-top:4px">
+                <strong>Action:</strong> {{ f.corrective_action }}
+              </div>
+            {% endif %}
+          </td>
+          <td><span class="pill {{ status_class(f.severity) }}">{{ f.severity }}</span></td>
+          <td class="small">{{ f.owner }}</td>
+          <td class="small nowrap">
+            {{ f.due_date }}
+            {% if days is not none and days < 0 and f.status != 'Closed' %}
+              <span class="pill lvl-crit">overdue</span>
+            {% endif %}
+          </td>
+          <td><span class="pill {{ status_class(f.status) }}">{{ f.status }}</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="note-box">
+  Severity scale: a <strong>major</strong> nonconformity is a total absence of a
+  required control or a systemic failure; a <strong>minor</strong> is an isolated
+  lapse in an otherwise working control; an <strong>observation</strong> notes a
+  weakness not yet breaching the standard; <strong>OFI</strong> marks an
+  opportunity for improvement.
+</div>
+{% endblock %}

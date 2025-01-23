@@ -3,4 +3,3 @@ uploads/
 __pycache__/
 *.pyc
 .pytest_cache/
-build_git_history.py

@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+
+# Local SQLite database. On Vercel the app seeds a fresh DB at
+# ISMS_DB_PATH (/tmp/isms.db) on cold start, so this file is unused there.
+isms.db
+
+# Evidence files uploaded while running locally.
+uploads/
+
+.playwright-mcp/
